@@ -1,2 +1,5 @@
-# recursive-interventions
- Less is Meaning
+## recursive-interventions
+
+##### Less is Meaning
+
+This is going to be my new pet-anti-cynicism-anti-conceptual-art-slash-architecture project. While architecture is usually framed as a narrative of answers to specific questions this project presumes that their is but one question: how do we build less? The simplest answer imaginale to this question is: how do we keep ourselves from wanting to destroy existing buildings? Sadly enough, very few arguments can be found on the economical side of the equation. Market oriented solutions will always prefer certaintity, predicitability and scalability. These are concepts that are very difficult to integrate with a narrative of let's try to just work with what we currently have. Luckely there are certain other things that really appeal to us humans. Of these this project tries to touch upon three concepts: Meaning, Beauty and Symbolism. Less is meaning. Beauty and symbolism will go hand in hand. The goal is an extreme overloading of the smallest cracks, fissures and dents with a dazzeling level of intricate complexity.
