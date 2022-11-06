@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Engine, Scene, useBeforeRender, useClick, useHover, useScene } from "react-babylonjs";
 import { Mesh, Vector3, Color3, VertexData } from "@babylonjs/core";
-import { addMeshToScene, constructVoxelQuadrata, quadratoAsVertexData } from "../geometry/quadrato";
+import { constructVoxelQuadrata } from "../geometry/quadrato";
 import { createSTL, vertexFaceListMeshToBaseMeshData } from "../geometry/meshHelpers";
 import { VertexFaceListMesh } from "../enums/geometry";
 
@@ -36,9 +36,6 @@ const SpinningBox: React.FC<ISpinningBoxProps> = (props) => {
     if (boxRef.current) {
       // Delta time smoothes the animation.
       const deltaTimeInMillis = scene.getEngine().getDeltaTime();
-
-      addMeshToScene(scene);
-
       boxRef.current.rotation.y += (rpm / 60) * Math.PI * 2 * (deltaTimeInMillis / 1000);
     }
   });

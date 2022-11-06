@@ -1,5 +1,5 @@
 import { Mesh, Scene, Vector3, VertexData } from "@babylonjs/core";
-import { Quad, VertexFaceListMesh } from "../enums/geometry";
+import { Quad, UVS, VertexFaceListMesh } from "../enums/geometry";
 import { gothicArc } from "./arcMethods";
 import { cleaningMesh, getNormal, joinMesh, loftVertexLists } from "./meshHelpers";
 import { createNumberList } from "./numericHelpers";
@@ -10,17 +10,6 @@ import { areColinear } from "./vectorHelpers";
 // but first come up with a similar section logic
 
 const creatingUVS = (d: number = 8) => gothicArc(d, 1.1);
-
-/**
- * Method for creating a simple arc which starts at basePt and goes towards the keystone, as defined by vDir+hDir
- * @param bPt
- * @param vDir
- * @param hDir
- * @param d
- * @returns arc points
- */
-const creatingArcDivisions = (bPt: Vector3, vDir: Vector3, hDir: Vector3, d: number = 8): Vector3[] =>
-  creatingArcUVs(bPt, vDir, hDir, creatingUVS(d));
 
 /**
  * Method for creating a simple arc which starts at basePt and goes towards the keystone, as defined by vDir+hDir
@@ -184,9 +173,7 @@ const createCellCap = (
   mesh.faces.push([idxCnt + vAs.length + 5, idxCnt + 4, idxCnt + 5]);
 
   for (let i = 0; i < uvs.length; i++) {
-    // top sidesA
     mesh.faces.push([idxCnt + 9 + i, idxCnt + 8 + i, idxCnt + 3]);
-    // top sidesB
     mesh.faces.push([idxCnt + vAs.length + 8 + i, idxCnt + vAs.length + 9 + i, idxCnt + 5]);
   }
 
@@ -205,10 +192,8 @@ const createCorner = (f0: Quad, f1: Quad, t0: number): VertexFaceListMesh => {
   const n1 = getNormal(f1).scale(t0);
 
   const angle = Vector3.GetAngleBetweenVectors(n0, n1, f0[3].subtract(f0[1]));
-  const mVec = n0
-    .add(n1)
-    .normalize()
-    .scale(t0 / Math.cos(angle * 0.5));
+  const s = t0 / Math.cos(angle * 0.5);
+  const mVec = n0.add(n1).normalize().scale(s);
 
   return loftVertexLists([
     [f0[3].add(n0), f0[1].add(n0)],
@@ -290,7 +275,6 @@ export const constructVoxelVariableHeights = (
   for (const [f0, f1] of cornerFaces) mesh = joinMesh(mesh, createCorner(f0, f1, t0));
   for (const f of sideFaces) mesh = joinMesh(mesh, createCellCap(f, f[2].subtract(f[0]), t0, t1, r, uvs));
 
-  // return mesh;
   return cleaningMesh(mesh);
 };
 
@@ -340,7 +324,6 @@ export const constructVariableFootprint = (
   for (const [f0, f1] of corners) mesh = joinMesh(mesh, createCorner(f0, f1, t0));
   for (const f of sideFaces) mesh = joinMesh(mesh, createCellCap(f, f[2].subtract(f[0]), t0, t1, r, uvs));
 
-  // return mesh;
   return cleaningMesh(mesh);
 };
 
@@ -364,59 +347,20 @@ export const constructVoxelQuadrata = (
 
   const mesh = constructVoxelVariableHeights(xs, ys, zs, t0, t1, dCnt, r);
 
-  // return mesh;
   return cleaningMesh(mesh);
 };
 
 export const quadratoAsVertexData = (): VertexFaceListMesh => {
-  const quadMesh = constructVariableFootprint(
-    [
-      [0, 0],
-      [10, 0],
-      [20, 0],
-      [20, 10],
-      [20, 20],
-      [10, 20],
-      [5, 10],
-    ],
-    [0, 12, 40, 48, 60, 68, 90, 98, 120, 128, 135],
-    2,
-    2,
-    12,
-    10 * 0.5 - 2
-  );
+  const uvs: UVS = [
+    [0, 0],
+    [10, 0],
+    [20, 0],
+    [20, 10],
+    [20, 20],
+    [10, 20],
+    [5, 10],
+  ];
+  const quadMesh = constructVariableFootprint(uvs, [0, 12, 40, 48, 60, 68, 90, 98, 120, 128, 135], 2, 2, 12, 10 * 0.5 - 2);
 
   return cleaningMesh(quadMesh);
-};
-
-export const addMeshToScene = (scene: Scene) => {
-  const quadMesh = constructVoxelQuadrata(2, 2, 2, 12, 10, 2, 2, 12);
-  const customMesh = new Mesh("custom", scene);
-  const { vertices, faces } = quadMesh;
-
-  const positions: number[] = [];
-  const indices: number[] = [];
-
-  for (let i = 0; i < vertices.length; i++) {
-    const { x, y, z } = vertices[i];
-    positions.push(x, y, z);
-  }
-
-  for (let i = 0; i < faces.length; i++) {
-    const f = faces[i];
-    if (f.length === 3) indices.push(f[0], f[1], f[2]);
-    else if (f.length === 4) indices.push(f[0], f[1], f[2], f[0], f[2], f[3]);
-  }
-
-  const normals: number[] = [];
-  VertexData.ComputeNormals(positions, indices, normals);
-
-  const vertexData = new VertexData();
-  vertexData.positions = positions;
-  vertexData.indices = indices;
-  vertexData.normals = normals;
-
-  vertexData.applyToMesh(customMesh);
-
-  return customMesh;
 };

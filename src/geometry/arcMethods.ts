@@ -26,9 +26,6 @@ export const mapUVS = (uvs: UVS, min: number = 0, max: number = 1): UVS => {
  */
 export const simpleArc = (d: number, maxAngle?: number): UVS => {
   const uvs: UVS = [];
-
-  console.log(maxAngle);
-
   const angleStep = (maxAngle ?? Math.PI * 0.5) / d;
 
   for (let i = 1; i < d + 1; i++) {
