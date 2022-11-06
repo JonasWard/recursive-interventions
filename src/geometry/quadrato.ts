@@ -1,5 +1,5 @@
-import { Mesh, Scene, Vector3, VertexData } from '@babylonjs/core';
-import { BaseMeshData, VertexFaceListMesh } from '../enums/geometry';
+import { Mesh, Scene, Vector3, VertexData } from "@babylonjs/core";
+import { BaseMeshData, VertexFaceListMesh } from "../enums/geometry";
 
 type HashedPositions = { [id: string]: number[] };
 
@@ -28,11 +28,13 @@ const boundingBox = (vs: Vector3[]) => {
     y: [yMin, yMax],
     z: [zMin, zMax],
     b: new Vector3(xMin - tolerance, yMin - tolerance, zMin - tolerance),
-    d: new Vector3(1.0 / (xMax - xMin + 2 * dTolerance), 1.0 / (yMax - yMin + 2 * dTolerance), 1.0 / (zMax - zMin + 2 * dTolerance)).scale(values.length),
+    d: new Vector3(1.0 / (xMax - xMin + 2 * dTolerance), 1.0 / (yMax - yMin + 2 * dTolerance), 1.0 / (zMax - zMin + 2 * dTolerance)).scale(
+      values.length
+    ),
   };
 };
 
-const values = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.';
+const values = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.";
 
 const ptHashN = (v: Vector3, d: Vector3) => `${values[Math.ceil(v.x * d.x)]}${values[Math.ceil(v.y * d.y)]}${values[Math.ceil(v.z * d.z)]}`;
 const ptHash = (v: Vector3, b: Vector3, d: Vector3) => ptHashN(v.subtract(b), d);
@@ -69,7 +71,7 @@ const quadraticFilteringMap = (vs: Vector3[]) => {
 
 const shiftingIndexMap = (indexMap: number[]) => {
   let shift = 0;
-  const shiftMap: {[i: number]: number} = {}
+  const shiftMap: { [i: number]: number } = {};
   return indexMap.map((idx, i) => {
     shiftMap[i] = idx - shift;
     if (idx !== i) {
@@ -86,7 +88,7 @@ const cleaningMesh = (mesh: VertexFaceListMesh): VertexFaceListMesh => {
 
   const indexMap = quadraticFilteringMap(vertices);
   const cleanedVertices = vertices.filter((v, i) => indexMap[i] === i);
-  const sIM = shiftingIndexMap(indexMap); 
+  const sIM = shiftingIndexMap(indexMap);
 
   const cleanedFaces = faces.map((f) => f.map((i) => sIM[i]) as [number, number, number] | [number, number, number, number]);
 
@@ -157,6 +159,12 @@ const creatArcSegment = (bPt0: Vector3, bPtA: Vector3, hDir: Vector3, vDir: Vect
   ...creatingArcUVs(bPtA, hDir, vDir, uvs),
 ];
 
+/**
+ * Method for creating a mesh from a series of polylines
+ * @param vs vertices arrays (each sub array is assumed to have the same length)
+ * @param closed whether the final loops back to the first
+ * @returns Mesh
+ */
 const loftVertexLists = (vs: Vector3[][], closed: boolean = false) => {
   const mesh: VertexFaceListMesh = { vertices: [], faces: [] };
 
@@ -167,7 +175,9 @@ const loftVertexLists = (vs: Vector3[][], closed: boolean = false) => {
     for (let i = 0; i < vs[0].length - 1; i++) {
       mesh.faces.push([subI + i + 1, subI + i, subII + i, subII + i + 1]);
     }
-  };
+
+    if (closed) mesh.faces.push([subII - 1, subI, subII, subII + vs[0].length - 1]);
+  }
 
   return mesh;
 };
@@ -201,13 +211,19 @@ const createArcCellSegment = (
   return loftVertexLists(vSeries);
 };
 
-const addMesh = (mesh: VertexFaceListMesh, localMesh: VertexFaceListMesh) => {
-  const { vertices, faces } = localMesh;
-  const idx = mesh.vertices.length ?? 0;
-  mesh.vertices.push(...vertices);
-  mesh.faces.push(...(faces.map((f) => f.map((i) => i + idx)) as ([number, number, number, number] | [number, number, number])[]));
+/**
+ * Method to join two meshes into single one
+ * @param meshA
+ * @param meshB
+ * @returns joined mesh of both
+ */
+const joinMesh = (meshA: VertexFaceListMesh, meshB: VertexFaceListMesh) => {
+  const { vertices, faces } = meshB;
+  const idx = meshA.vertices.length ?? 0;
+  meshA.vertices.push(...vertices);
+  meshA.faces.push(...(faces.map((f) => f.map((i) => i + idx)) as ([number, number, number, number] | [number, number, number])[]));
 
-  return mesh;
+  return meshA;
 };
 
 // Method to create center of arc cell
@@ -240,7 +256,7 @@ const createCenterArcCell = (
     ];
 
     const localMesh = createArcCellSegment(cornerPointsBottom[i1], cornertPointsTop[i1], vV, vHs, t0, t1, r, uvs);
-    mesh = addMesh(mesh, localMesh);
+    mesh = joinMesh(mesh, localMesh);
   }
 
   return mesh;
@@ -257,9 +273,19 @@ const createCenterArcCell = (
  * @param t1 inset distance 1
  * @param r radius of arc
  * @param uvs uvs for arc generation
- * @returns 
+ * @returns
  */
-const createCellCap = (p0B: Vector3, p1B: Vector3, p0T: Vector3, p1T: Vector3, vZ: Vector3, t0: number, t1: number, r: number, uvs: [number, number][]) => {
+const createCellCap = (
+  p0B: Vector3,
+  p1B: Vector3,
+  p0T: Vector3,
+  p1T: Vector3,
+  vZ: Vector3,
+  t0: number,
+  t1: number,
+  r: number,
+  uvs: [number, number][]
+) => {
   let mesh: VertexFaceListMesh = { vertices: [], faces: [] };
 
   // creating the inner positions for the arc
@@ -282,38 +308,153 @@ const createCellCap = (p0B: Vector3, p1B: Vector3, p0T: Vector3, p1T: Vector3, v
   ];
 
   const vSeries1 = [
-    creatArcSegment(p1Bo.add(vHN), p1To.add(vHN), vH.subtract(vH0).scale(-1.), locOZ, uvs),
-    creatArcSegment(p1Bo, p1To, vH.subtract(vH0).scale(-1.), locOZ, uvs),
+    creatArcSegment(p1Bo.add(vHN), p1To.add(vHN), vH.subtract(vH0).scale(-1), locOZ, uvs),
+    creatArcSegment(p1Bo, p1To, vH.subtract(vH0).scale(-1), locOZ, uvs),
   ];
 
   mesh = loftVertexLists(vSeries0);
-  mesh = addMesh(mesh, loftVertexLists(vSeries1));
+  mesh = joinMesh(mesh, loftVertexLists(vSeries1));
 
   // creating the cap surfaces
   const idxCnt = mesh.vertices.length;
-  mesh.vertices.push(...[p0B, p0B.add(p1B).scale(.5), p1B, p0T, p0T.add(p1T).scale(.5), p1T].map(v => v.add(vHN)));
+  mesh.vertices.push(...[p0B, p0B.add(p1B).scale(0.5), p1B, p0T, p0T.add(p1T).scale(0.5), p1T].map((v) => v.add(vHN)));
   const vAs = creatArcSegment(p0Bo.add(vHN), p0To.add(vHN), vH.subtract(vH0), locOZ, uvs);
   mesh.vertices.push(...vAs);
-  const vBs = creatArcSegment(p1Bo.add(vHN), p1To.add(vHN), vH.subtract(vH0).scale(-1.), locOZ, uvs);
+  const vBs = creatArcSegment(p1Bo.add(vHN), p1To.add(vHN), vH.subtract(vH0).scale(-1), locOZ, uvs);
   mesh.vertices.push(...vBs);
 
   // main sidesA
   mesh.faces.push([idxCnt + 1, idxCnt + 0, idxCnt + 7, idxCnt + 6]);
   mesh.faces.push([idxCnt + 0, idxCnt + 3, idxCnt + 8, idxCnt + 7]);
-  mesh.faces.push([idxCnt + vAs.length + 5, idxCnt + 3, idxCnt + 4])
+  mesh.faces.push([idxCnt + vAs.length + 5, idxCnt + 3, idxCnt + 4]);
   // main sidesB
   mesh.faces.push([idxCnt + 2, idxCnt + 1, idxCnt + vAs.length + 6, idxCnt + vAs.length + 7]);
   mesh.faces.push([idxCnt + 5, idxCnt + 2, idxCnt + vAs.length + 7, idxCnt + vAs.length + 8]);
-  mesh.faces.push([idxCnt + vAs.length + 5, idxCnt + 4, idxCnt + 5])
+  mesh.faces.push([idxCnt + vAs.length + 5, idxCnt + 4, idxCnt + 5]);
 
   for (let i = 0; i < uvs.length; i++) {
     // top sidesA
-    mesh.faces.push([idxCnt + 9 + i, idxCnt + 8 + i , idxCnt + 3]);
+    mesh.faces.push([idxCnt + 9 + i, idxCnt + 8 + i, idxCnt + 3]);
     // top sidesB
-    mesh.faces.push([idxCnt + vAs.length + 8 + i, idxCnt + vAs.length + 9 + i , idxCnt + 5]);
+    mesh.faces.push([idxCnt + vAs.length + 8 + i, idxCnt + vAs.length + 9 + i, idxCnt + 5]);
   }
 
   return mesh;
+};
+
+/**
+ * Helper method for creating pairwise array
+ * @param vs number array
+ * @param closed boolean
+ * @returns [number, number] array
+ */
+const pairWiseIteration = (vs: number[], closed = false): [number, number][] => {
+  const ns: [number, number][] = [];
+  for (let i = 0; i < vs.length - 1; i++) ns.push([vs[i], vs[i + 1]]);
+  if (closed) ns.push([vs[vs.length - 1], vs[0]]);
+  return ns;
+};
+
+/**
+ * Helper to create list of numbers
+ * @param start first value of array
+ * @param step step size
+ * @param cnt amount of items
+ * @returns number array
+ */
+const createNumberList = (start: number, step: number, cnt: number): number[] => {
+  const ns: number[] = [];
+  for (let i = 0; i < cnt; i++) ns.push(start + i * step);
+  return ns;
+};
+
+export const constructVoxelVariableHeights = (
+  xs: number[],
+  ys: number[],
+  zs: number[],
+  h: number,
+  w: number,
+  t0 = 1,
+  t1 = 1,
+  dCnt: number = 8,
+  r?: number
+): VertexFaceListMesh => {
+  let mesh: VertexFaceListMesh = { vertices: [], faces: [] };
+  r = r ?? w * 0.5 - t0;
+
+  const uvs = creatingUVS(dCnt);
+  const xLast = xs[xs.length - 1];
+  const yLast = ys[ys.length - 1];
+
+  for (const [x0, x1] of pairWiseIteration(xs)) {
+    for (const [y0, y1] of pairWiseIteration(ys)) {
+      for (const [z0, z1] of pairWiseIteration(zs)) {
+        const xM = (x0 + x1) * 0.5;
+        const yM = (y0 + y1) * 0.5;
+
+        const bottomPts = [new Vector3(x0, y0, z0), new Vector3(x1, y0, z0), new Vector3(x1, y1, z0), new Vector3(x0, y1, z0)];
+        const topPts = [new Vector3(x0, y0, z1), new Vector3(x1, y0, z1), new Vector3(x1, y1, z1), new Vector3(x0, y1, z1)];
+
+        const bottomCPt = new Vector3(xM, yM, z0);
+        const topCPt = new Vector3(xM, yM, z1);
+
+        const localMesh = createCenterArcCell(bottomPts, topPts, t0, t1, r, uvs, bottomCPt, topCPt);
+
+        mesh = joinMesh(mesh, localMesh);
+      }
+    }
+  }
+
+  for (const [x0, x1] of pairWiseIteration(xs)) {
+    for (const [z0, z1] of pairWiseIteration(zs)) {
+      const p00 = new Vector3(x0, ys[0], z0);
+      const p01 = new Vector3(x1, ys[0], z0);
+      const p10 = new Vector3(x0, ys[0], z1);
+      const p11 = new Vector3(x1, ys[0], z1);
+
+      const localMesh = createCellCap(p00, p01, p10, p11, new Vector3(0, 0, h), t0, t1, r, uvs);
+      mesh = joinMesh(mesh, localMesh);
+    }
+  }
+
+  for (const [x0, x1] of pairWiseIteration(xs)) {
+    for (const [z0, z1] of pairWiseIteration(zs)) {
+      const p00 = new Vector3(x0, yLast, z0);
+      const p01 = new Vector3(x1, yLast, z0);
+      const p10 = new Vector3(x0, yLast, z1);
+      const p11 = new Vector3(x1, yLast, z1);
+
+      const localMesh = createCellCap(p01, p00, p11, p10, new Vector3(0, 0, h), t0, t1, r, uvs);
+      mesh = joinMesh(mesh, localMesh);
+    }
+  }
+
+  for (const [y0, y1] of pairWiseIteration(ys)) {
+    for (const [z0, z1] of pairWiseIteration(zs)) {
+      const p01 = new Vector3(xs[0], y0, z0);
+      const p00 = new Vector3(xs[0], y1, z0);
+      const p11 = new Vector3(xs[0], y0, z1);
+      const p10 = new Vector3(xs[0], y1, z1);
+
+      const localMesh = createCellCap(p00, p01, p10, p11, new Vector3(0, 0, h), t0, t1, r, uvs);
+      mesh = joinMesh(mesh, localMesh);
+    }
+  }
+
+  for (const [y0, y1] of pairWiseIteration(ys)) {
+    for (const [z0, z1] of pairWiseIteration(zs)) {
+      const p01 = new Vector3(xLast, y0, z0);
+      const p00 = new Vector3(xLast, y1, z0);
+      const p11 = new Vector3(xLast, y0, z1);
+      const p10 = new Vector3(xLast, y1, z1);
+
+      const localMesh = createCellCap(p01, p00, p11, p10, new Vector3(0, 0, h), t0, t1, r, uvs);
+      mesh = joinMesh(mesh, localMesh);
+    }
+  }
+
+  // return mesh;
+  return cleaningMesh(mesh);
 };
 
 export const constructVoxelQuadrata = (
@@ -327,104 +468,15 @@ export const constructVoxelQuadrata = (
   dCnt: number = 8,
   r?: number
 ) => {
-  let mesh: VertexFaceListMesh = { vertices: [], faces: [] };
   r = r ?? w * 0.5 - t0;
 
   const uvs = creatingUVS(dCnt);
 
-  for (let i = 0; i < xC; i++) {
-    const x0 = w * i;
-    const x1 = w * (i + 1);
-    for (let j = 0; j < yC; j++) {
-      const y0 = w * j;
-      const y1 = w * (j + 1);
-      for (let k = 0; k < zC; k++) {
-        const z0 = h * k;
-        const z1 = h * (k + 1);
+  const xs = createNumberList(xC - w * 0.5, w, xC);
+  const ys = createNumberList(yC - w * 0.5, w, yC);
+  const zs = createNumberList(zC - h * 0.5, h, zC);
 
-        const xM = (x0 + x1) * 0.5;
-        const yM = (y0 + y1) * 0.5;
-
-        const bottomPts = [new Vector3(x0, y0, z0), new Vector3(x1, y0, z0), new Vector3(x1, y1, z0), new Vector3(x0, y1, z0)];
-        const topPts = [new Vector3(x0, y0, z1), new Vector3(x1, y0, z1), new Vector3(x1, y1, z1), new Vector3(x0, y1, z1)];
-
-        const bottomCPt = new Vector3(xM, yM, z0);
-        const topCPt = new Vector3(xM, yM, z1);
-
-        const localMesh = createCenterArcCell(bottomPts, topPts, t0, t1, r, uvs, bottomCPt, topCPt);
-
-        mesh = addMesh(mesh, localMesh);
-      }
-    }
-  }
-
-  for (let i = 0; i < xC; i++) {
-    const x0 = w * i;
-    const x1 = w * (i + 1);
-    for (let k = 0; k < zC; k++) {
-      const z0 = h * k;
-      const z1 = h * (k + 1);
-
-      const p00 = new Vector3(x0, 0., z0);
-      const p01 = new Vector3(x1, 0., z0);
-      const p10 = new Vector3(x0, 0., z1);
-      const p11 = new Vector3(x1, 0., z1);
-
-      const localMesh = createCellCap(p00, p01, p10, p11, new Vector3(0, 0, h), t0, t1, r, uvs);
-      mesh = addMesh(mesh, localMesh);
-    }
-  }
-
-  for (let i = 0; i < xC; i++) {
-    const x1 = w * i;
-    const x0 = w * (i + 1);
-    for (let k = 0; k < zC; k++) {
-      const z0 = h * k;
-      const z1 = h * (k + 1);
-
-      const p00 = new Vector3(x0, yC * w, z0);
-      const p01 = new Vector3(x1, yC * w, z0);
-      const p10 = new Vector3(x0, yC * w, z1);
-      const p11 = new Vector3(x1, yC * w, z1);
-
-      const localMesh = createCellCap(p00, p01, p10, p11, new Vector3(0, 0, h), t0, t1, r, uvs);
-      mesh = addMesh(mesh, localMesh);
-    }
-  }
-
-  for (let j = 0; j < yC; j++) {
-    const y0 = w * j;
-    const y1 = w * (j + 1);
-    for (let k = 0; k < zC; k++) {
-      const z0 = h * k;
-      const z1 = h * (k + 1);
-
-      const p01 = new Vector3(0., y0, z0);
-      const p00 = new Vector3(0., y1, z0);
-      const p11 = new Vector3(0., y0, z1);
-      const p10 = new Vector3(0., y1, z1);
-
-      const localMesh = createCellCap(p00, p01, p10, p11, new Vector3(0, 0, h), t0, t1, r, uvs);
-      mesh = addMesh(mesh, localMesh);
-    }
-  }
-
-  for (let j = 0; j < xC; j++) {
-    const y1 = w * j;
-    const y0 = w * (j + 1);
-    for (let k = 0; k < zC; k++) {
-      const z0 = h * k;
-      const z1 = h * (k + 1);
-
-      const p01 = new Vector3(xC * w, y0, z0);
-      const p00 = new Vector3(xC * w, y1, z0);
-      const p11 = new Vector3(xC * w, y0, z1);
-      const p10 = new Vector3(xC * w, y1, z1);
-
-      const localMesh = createCellCap(p00, p01, p10, p11, new Vector3(0, 0, h), t0, t1, r, uvs);
-      mesh = addMesh(mesh, localMesh);
-    }
-  }
+  const mesh = constructVoxelVariableHeights(xs, ys, zs, h, w, t0, t1, dCnt, r);
 
   // return mesh;
   return cleaningMesh(mesh);
@@ -448,12 +500,12 @@ export const quadratoAsVertexData = (): BaseMeshData => {
     else if (f.length === 4) indices.push(f[0], f[1], f[2], f[0], f[2], f[3]);
   }
 
-  return {positions, indices};
-}
+  return { positions, indices };
+};
 
 export const addMeshToScene = (scene: Scene) => {
   const quadMesh = constructVoxelQuadrata(2, 2, 2, 12, 10, 2, 2, 12);
-  const customMesh = new Mesh('custom', scene);
+  const customMesh = new Mesh("custom", scene);
   const { vertices, faces } = quadMesh;
 
   const positions: number[] = [];
