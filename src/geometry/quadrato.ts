@@ -1,6 +1,8 @@
 import { Mesh, Scene, Vector3, VertexData } from "@babylonjs/core";
 import { BaseMeshData, Quad, VertexFaceListMesh } from "../enums/geometry";
-import { cleaningMesh } from "./meshHelpers";
+import { cleaningMesh, getNormal } from "./meshHelpers";
+import { polygonLazyNormal } from "./polygonHelpers";
+import { areColinear } from "./vectorHelpers";
 
 // probably should put all this stuff in a section creation class
 // but first come up with a similar section logic
@@ -239,6 +241,23 @@ const createCellCap = (
   return mesh;
 };
 
+const createCorner = (f0: Quad, f1: Quad, t0: number): VertexFaceListMesh => {
+  const n0 = getNormal(f0).scale(t0);
+  const n1 = getNormal(f1).scale(t0);
+
+  const angle = Vector3.GetAngleBetweenVectors(n0, n1, f0[3].subtract(f0[1]));
+  const mVec = n0
+    .add(n1)
+    .normalize()
+    .scale(t0 / Math.cos(angle * 0.5));
+
+  return loftVertexLists([
+    [f0[3].add(n0), f0[1].add(n0)],
+    [f0[3].add(mVec), f0[1].add(mVec)],
+    [f1[2].add(n1), f1[0].add(n1)],
+  ]);
+};
+
 /**
  * Helper method for creating pairwise array
  * @param vs number array
@@ -333,12 +352,14 @@ export const constructVariableFootprint = (
 
   const uvs = creatingUVS(dCnt);
   const sideFaces: Quad[] = [];
-
-  console.log(xys);
+  const corners: [Quad, Quad][] = [];
 
   for (const [z0, z1] of pairWiseIteration(zs)) {
     const bottomPts: Vector3[] = [];
     const topPts: Vector3[] = [];
+
+    const localFaceArray: Quad[] = [];
+
     for (let i = 0; i < xys.length; i++) {
       const [x0, y0] = xys[i];
       const [x1, y1] = xys[(i + 1) % xys.length];
@@ -346,13 +367,23 @@ export const constructVariableFootprint = (
       bottomPts.push(new Vector3(x0, y0, z0));
       topPts.push(new Vector3(x0, y0, z1));
 
-      sideFaces.push([new Vector3(x0, y0, z0), new Vector3(x1, y1, z0), new Vector3(x0, y0, z1), new Vector3(x1, y1, z1)]);
+      localFaceArray.push([new Vector3(x0, y0, z0), new Vector3(x1, y1, z0), new Vector3(x0, y0, z1), new Vector3(x1, y1, z1)]);
     }
+
+    for (let i = 0; i < localFaceArray.length; i++) {
+      const f0 = localFaceArray[i];
+      const f1 = localFaceArray[(i + 1) % localFaceArray.length];
+
+      if (!areColinear(polygonLazyNormal(f0), polygonLazyNormal(f1))) corners.push([f0, f1]);
+    }
+
+    sideFaces.push(...localFaceArray);
 
     const localMesh = createCenterArcCell(bottomPts, topPts, t0, t1, r, uvs);
     mesh = joinMesh(mesh, localMesh);
   }
 
+  for (const [f0, f1] of corners) mesh = joinMesh(mesh, createCorner(f0, f1, t0));
   for (const f of sideFaces) mesh = joinMesh(mesh, createCellCap(f, f[2].subtract(f[0]), t0, t1, r, uvs));
 
   // return mesh;
@@ -394,7 +425,7 @@ export const quadratoAsVertexData = (): BaseMeshData => {
       [10, 20],
       [5, 10],
     ],
-    [0, 12, 40, 48, 60, 68, 90],
+    [0, 12, 40, 48, 60, 68, 90, 98, 120, 128, 135],
     2,
     2,
     12,

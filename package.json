@@ -5,30 +5,38 @@
   "author": "JonasWard",
   "license": "MIT",
   "devDependencies": {
+    "@babel/preset-typescript": "^7.14.5",
     "prettier": "2.7.1"
   },
   "dependencies": {
+    "@babel/core": "^7.14.5",
+    "@babel/plugin-syntax-flow": "^7.14.5",
+    "@babel/plugin-transform-react-jsx": "^7.14.5",
     "@babylonjs/core": "^5.31.0",
     "@babylonjs/gui": "^5.31.0",
     "@babylonjs/loaders": "^5.31.0",
+    "@testing-library/dom": ">=7.21.4",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^27.5.2",
-    "@types/node": "^16.18.3",
+    "@types/jest": "^29.0.3",
+    "@types/node": "^18.11.9",
     "@types/react": "^18.0.25",
     "@types/react-dom": "^18.0.8",
+    "babylonjs-gltf2interface": "^5.22.0",
+    "jest": "^29.0.3",
     "react": "^18.2.0",
     "react-babylonjs": "^3.1.13",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
+    "ts-jest": "^29.0.3",
     "typescript": "^4.8.4",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
+    "test": "jest",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {

@@ -1,8 +1,9 @@
 import { Vector3 } from "@babylonjs/core";
-import { VertexFaceListMesh } from "../enums/geometry";
+import { Polygon, VertexFaceListMesh } from "../enums/geometry";
 
 type HashedPositions = { [id: string]: number[] };
 
+// bounding box calculation
 const boundingBox = (vs: Vector3[]) => {
   const tolerance = 0.0001;
   const dTolerance = tolerance * 2;
@@ -102,4 +103,16 @@ export const cleaningMesh = (mesh: VertexFaceListMesh): VertexFaceListMesh => {
   const newMesh = { vertices: cleanedVertices, faces: cleanedFaces };
 
   return newMesh;
+};
+
+/**
+ * Lazy method that tries to get normal for polygon face.
+ * @param polygon Polygon polygon
+ * @returns normal Vector3
+ */
+export const getNormal = (polygon: Polygon): Vector3 => {
+  const [a, b, c] = polygon;
+  const v1 = b.subtract(a);
+  const v2 = c.subtract(a);
+  return Vector3.Cross(v1, v2).normalize();
 };
