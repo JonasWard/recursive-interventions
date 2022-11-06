@@ -1,5 +1,6 @@
 import { Vector3 } from "@babylonjs/core";
-import { Polygon, VertexFaceListMesh } from "../enums/geometry";
+import { BaseMeshData, Polygon, VertexFaceListMesh } from "../enums/geometry";
+import { polygonLazyNormal } from "./polygonHelpers";
 
 type HashedPositions = { [id: string]: number[] };
 
@@ -115,4 +116,88 @@ export const getNormal = (polygon: Polygon): Vector3 => {
   const v1 = b.subtract(a);
   const v2 = c.subtract(a);
   return Vector3.Cross(v1, v2).normalize();
+};
+
+export const vertexFaceListMeshToTris = (mesh: VertexFaceListMesh): VertexFaceListMesh => {
+  const { vertices, faces } = mesh;
+
+  const tris: [number, number, number][] = [];
+  for (const f of faces) {
+    if (f.length === 3) tris.push(f);
+    else tris.push([f[0], f[1], f[2]], [f[0], f[2], f[3]]);
+  }
+
+  return { vertices, faces: tris };
+};
+
+export const vertexFaceListMeshToBaseMeshData = (mesh: VertexFaceListMesh): BaseMeshData => {
+  const { vertices, faces } = mesh;
+
+  const positions: number[] = [];
+  const indices: number[] = [];
+
+  for (let i = 0; i < vertices.length; i++) {
+    const { x, y, z } = vertices[i];
+    positions.push(x, y, z);
+  }
+
+  for (let i = 0; i < faces.length; i++) {
+    const f = faces[i];
+    if (f.length === 3) indices.push(f[0], f[1], f[2]);
+    else if (f.length === 4) indices.push(f[0], f[1], f[2], f[0], f[2], f[3]);
+  }
+
+  return { positions, indices };
+};
+
+export const createSTL = (mesh: VertexFaceListMesh) => {
+  // get an index and face list fron the object, geometry is just fine, all faces are triangles
+  const { faces, vertices } = vertexFaceListMeshToTris(mesh);
+
+  const vertexStrings: string[] = [];
+
+  faces.forEach((f) => {
+    if (f.length === 3) {
+      const vs = [vertices[f[0]], vertices[f[1]], vertices[f[2]]];
+      const normal = polygonLazyNormal(vs);
+
+      vertexStrings.push(
+        `facet normal ${normal.x} ${normal.y} ${normal.z}
+outer loop
+vertex ${vs[0].x} ${vs[0].y} ${vs[0].z}
+vertex ${vs[1].x} ${vs[1].y} ${vs[1].z}
+vertex ${vs[2].x} ${vs[2].y} ${vs[2].z}
+endloop
+endfacet`
+      );
+    } else if (f.length === 4) {
+      const vs = [vertices[f[0]], vertices[f[1]], vertices[f[2]], vertices[f[3]]];
+      const normal = polygonLazyNormal(vs);
+
+      vertexStrings.push(
+        `facet normal ${normal.x} ${normal.y} ${normal.z}
+outer loop
+vertex ${vs[0].x} ${vs[0].y} ${vs[0].z}
+vertex ${vs[1].x} ${vs[1].y} ${vs[1].z}
+vertex ${vs[2].x} ${vs[2].y} ${vs[2].z}
+vertex ${vs[3].x} ${vs[3].y} ${vs[3].z}
+endloop
+endfacet`
+      );
+    }
+  });
+
+  const element = document.createElement("a");
+
+  const stlContent = `solid Exported by JonasWard with babsrects
+${vertexStrings.join("\n")}
+endsolid Exported by JonasWard with babsrects`;
+
+  const file = new Blob([stlContent], {
+    type: "text/plain",
+  });
+  element.href = URL.createObjectURL(file);
+  element.download = "babsrect.stl";
+  document.body.appendChild(element);
+  element.click();
 };

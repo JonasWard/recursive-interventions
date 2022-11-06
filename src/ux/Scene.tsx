@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { Engine, Scene, useBeforeRender, useClick, useHover, useScene } from "react-babylonjs";
 import { Mesh, Vector3, Color3, VertexData } from "@babylonjs/core";
 import { addMeshToScene, quadratoAsVertexData } from "../geometry/quadrato";
+import { createSTL, vertexFaceListMeshToBaseMeshData } from "../geometry/meshHelpers";
+import { VertexFaceListMesh } from "../enums/geometry";
 
 const DefaultScale = new Vector3(1, 1, 1);
 const BiggerScale = new Vector3(1.25, 1.25, 1.25);
@@ -56,17 +58,17 @@ interface ICustomMeshProps {
   name: string;
   useWireframe: boolean;
   position: Vector3;
+  setMesh: (mesh: VertexFaceListMesh) => void;
 }
 
 const CustomMesh: React.FC<ICustomMeshProps> = (props) => {
   const scene = useScene();
-  const [hovered, setHovered] = useState(false);
-
-  const customMeshMethod = () => {
+  const [mesh] = useState<VertexFaceListMesh>(quadratoAsVertexData());
+  const [customMesh] = useState(() => {
     const meshInstance = new Mesh(props.name, scene);
 
     //Set arrays for positions and indices
-    const { positions, indices } = quadratoAsVertexData();
+    const { positions, indices } = vertexFaceListMeshToBaseMeshData(mesh);
 
     //Empty array to contain calculated values
     const normals: number[] = [];
@@ -84,50 +86,38 @@ const CustomMesh: React.FC<ICustomMeshProps> = (props) => {
     vertexData.applyToMesh(meshInstance);
 
     return meshInstance;
-  };
-
-  const customMeshRef = useRef<Mesh | null>(customMeshMethod());
-
-  const rpm = 5;
-  useBeforeRender((scene) => {
-    if (customMeshRef.current) {
-      // Delta time smoothes the animation.
-      const deltaTimeInMillis = scene.getEngine().getDeltaTime();
-      customMeshRef.current.rotation.y += (rpm / 60) * Math.PI * 2 * (deltaTimeInMillis / 1000);
-    }
   });
 
-  useHover(
-    () => setHovered(true),
-    () => setHovered(false),
-    customMeshRef
-  );
-
   useEffect(() => {
-    console.log("hover: ", hovered);
-  }, [hovered]);
-
-  useEffect(() => {
-    console.log("currentMeshRef: ", customMeshRef);
-  }, [customMeshRef]);
+    props.setMesh(mesh);
+  }, [mesh]);
 
   return (
-    <mesh name={props.name} ref={customMeshRef} disposeInstanceOnUnmount position={props.position}>
-      <standardMaterial name={`${props.name}-mat`} wireframe={hovered} />
-    </mesh>
+    <>
+      <mesh name={props.name} fromInstance={customMesh} disposeInstanceOnUnmount position={props.position}>
+        <standardMaterial name={`${props.name}-mat`} />
+      </mesh>
+    </>
   );
 };
 
-export const SceneWithSpinningBoxes = () => (
-  <div>
-    <Engine antialias adaptToDeviceRatio={true} canvasId="babylonJS" width={"100%"} height={"100%"}>
-      <Scene>
-        <arcRotateCamera name="camera1" target={Vector3.Zero()} alpha={Math.PI / 2} beta={Math.PI / 4} radius={8} />
-        <hemisphericLight name="light1" intensity={0.7} direction={Vector3.Up()} />
-        <CustomMesh name="left" position={new Vector3(-2, 0, 0)} useWireframe={false} />
-      </Scene>
-    </Engine>
-  </div>
-);
+export const SceneWithSpinningBoxes = () => {
+  const [mesh, setMesh] = useState<VertexFaceListMesh>({} as VertexFaceListMesh);
+
+  return (
+    <div>
+      <button onClick={() => createSTL(mesh)} style={{ position: "absolute" }}>
+        download stl
+      </button>
+      <Engine antialias adaptToDeviceRatio={true} canvasId="babylonJS" width={"100%"} height={"100%"}>
+        <Scene>
+          <arcRotateCamera name="camera1" target={Vector3.Zero()} alpha={Math.PI / 2} beta={Math.PI / 4} radius={8} />
+          <hemisphericLight name="light1" intensity={0.7} direction={Vector3.Up()} />
+          <CustomMesh name="left" position={new Vector3(-2, 0, 0)} useWireframe={false} setMesh={setMesh} />
+        </Scene>
+      </Engine>
+    </div>
+  );
+};
 
 export default SceneWithSpinningBoxes;

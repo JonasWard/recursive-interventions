@@ -1,6 +1,6 @@
 import { Mesh, Scene, Vector3, VertexData } from "@babylonjs/core";
 import { BaseMeshData, Quad, VertexFaceListMesh } from "../enums/geometry";
-import { cleaningMesh, getNormal } from "./meshHelpers";
+import { cleaningMesh, getNormal, vertexFaceListMeshToBaseMeshData } from "./meshHelpers";
 import { polygonLazyNormal } from "./polygonHelpers";
 import { areColinear } from "./vectorHelpers";
 
@@ -413,7 +413,7 @@ export const constructVoxelQuadrata = (
   return cleaningMesh(mesh);
 };
 
-export const quadratoAsVertexData = (): BaseMeshData => {
+export const quadratoAsVertexData = (): VertexFaceListMesh => {
   // const quadMesh = constructVoxelQuadrata(5, 5, 5, 12, 10, 2, 2, 12);
   const quadMesh = constructVariableFootprint(
     [
@@ -432,23 +432,7 @@ export const quadratoAsVertexData = (): BaseMeshData => {
     10 * 0.5 - 2
   );
 
-  const { vertices, faces } = quadMesh;
-
-  const positions: number[] = [];
-  const indices: number[] = [];
-
-  for (let i = 0; i < vertices.length; i++) {
-    const { x, y, z } = vertices[i];
-    positions.push(x, y, z);
-  }
-
-  for (let i = 0; i < faces.length; i++) {
-    const f = faces[i];
-    if (f.length === 3) indices.push(f[0], f[1], f[2]);
-    else if (f.length === 4) indices.push(f[0], f[1], f[2], f[0], f[2], f[3]);
-  }
-
-  return { positions, indices };
+  return quadMesh;
 };
 
 export const addMeshToScene = (scene: Scene) => {
