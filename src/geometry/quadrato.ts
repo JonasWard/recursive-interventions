@@ -321,6 +321,44 @@ export const constructVoxelVariableHeights = (
   return cleaningMesh(mesh);
 };
 
+export const constructVariableFootprint = (
+  xys: [number, number][],
+  zs: number[],
+  t0 = 1,
+  t1 = 1,
+  dCnt: number = 8,
+  r: number
+): VertexFaceListMesh => {
+  let mesh: VertexFaceListMesh = { vertices: [], faces: [] };
+
+  const uvs = creatingUVS(dCnt);
+  const sideFaces: Quad[] = [];
+
+  console.log(xys);
+
+  for (const [z0, z1] of pairWiseIteration(zs)) {
+    const bottomPts: Vector3[] = [];
+    const topPts: Vector3[] = [];
+    for (let i = 0; i < xys.length; i++) {
+      const [x0, y0] = xys[i];
+      const [x1, y1] = xys[(i + 1) % xys.length];
+
+      bottomPts.push(new Vector3(x0, y0, z0));
+      topPts.push(new Vector3(x0, y0, z1));
+
+      sideFaces.push([new Vector3(x0, y0, z0), new Vector3(x1, y1, z0), new Vector3(x0, y0, z1), new Vector3(x1, y1, z1)]);
+    }
+
+    const localMesh = createCenterArcCell(bottomPts, topPts, t0, t1, r, uvs);
+    mesh = joinMesh(mesh, localMesh);
+  }
+
+  for (const f of sideFaces) mesh = joinMesh(mesh, createCellCap(f, f[2].subtract(f[0]), t0, t1, r, uvs));
+
+  // return mesh;
+  return cleaningMesh(mesh);
+};
+
 export const constructVoxelQuadrata = (
   xC: number,
   yC: number,
@@ -345,7 +383,24 @@ export const constructVoxelQuadrata = (
 };
 
 export const quadratoAsVertexData = (): BaseMeshData => {
-  const quadMesh = constructVoxelQuadrata(5, 5, 5, 12, 10, 2, 2, 12);
+  // const quadMesh = constructVoxelQuadrata(5, 5, 5, 12, 10, 2, 2, 12);
+  const quadMesh = constructVariableFootprint(
+    [
+      [0, 0],
+      [10, 0],
+      [20, 0],
+      [20, 10],
+      [20, 20],
+      [10, 20],
+      [5, 10],
+    ],
+    [0, 12, 40, 48, 60, 68, 90],
+    2,
+    2,
+    12,
+    10 * 0.5 - 2
+  );
+
   const { vertices, faces } = quadMesh;
 
   const positions: number[] = [];
