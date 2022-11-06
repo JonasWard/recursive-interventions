@@ -19,6 +19,8 @@ export const polygonIsColinear = (plg: Polygon): boolean => {
   return !hasNonColinear;
 };
 
+export const centroid = (vs: Vector3[]) => vs.reduce((a, b) => a.add(b)).scale(1.0 / vs.length);
+
 const polygonIsColinearVecors = (plg: Polygon): boolean => {
   if (plg.length < 2) throw new Error("Polygon must have at least 2 vertices");
   const v = plg[0].subtract(plg[plg.length - 1]);

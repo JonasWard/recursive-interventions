@@ -1,24 +1,15 @@
 import { Mesh, Scene, Vector3, VertexData } from "@babylonjs/core";
-import { BaseMeshData, Quad, VertexFaceListMesh } from "../enums/geometry";
-import { cleaningMesh, getNormal, vertexFaceListMeshToBaseMeshData } from "./meshHelpers";
-import { polygonLazyNormal } from "./polygonHelpers";
+import { Quad, VertexFaceListMesh } from "../enums/geometry";
+import { gothicArc } from "./arcMethods";
+import { cleaningMesh, getNormal, joinMesh, loftVertexLists } from "./meshHelpers";
+import { createNumberList } from "./numericHelpers";
+import { centroid, polygonLazyNormal } from "./polygonHelpers";
 import { areColinear } from "./vectorHelpers";
 
 // probably should put all this stuff in a section creation class
 // but first come up with a similar section logic
 
-const creatingUVS = (d: number = 8) => {
-  const uvs: [number, number][] = [];
-
-  const angleStep = (Math.PI * 0.5) / d;
-
-  for (let i = 1; i < d + 1; i++) {
-    const angle = angleStep * i;
-    uvs.push([1 - Math.cos(angle), Math.sin(angle)]);
-  }
-
-  return uvs;
-};
+const creatingUVS = (d: number = 8) => gothicArc(d, 1.1);
 
 /**
  * Method for creating a simple arc which starts at basePt and goes towards the keystone, as defined by vDir+hDir
@@ -56,36 +47,11 @@ const creatingArcDirections = (bPt: Vector3, uvDirs: [Vector3, Vector3][]): Vect
   ...uvDirs.map(([uD, vD]) => bPt.add(uD.add(vD))),
 ];
 
-const centroid = (vs: Vector3[]) => vs.reduce((a, b) => a.add(b)).scale(1.0 / vs.length);
-
 const creatArcSegment = (bPt0: Vector3, bPtA: Vector3, hDir: Vector3, vDir: Vector3, uvs: [number, number][]) => [
   bPt0.add(hDir),
   bPt0,
   ...creatingArcUVs(bPtA, hDir, vDir, uvs),
 ];
-
-/**
- * Method for creating a mesh from a series of polylines
- * @param vs vertices arrays (each sub array is assumed to have the same length)
- * @param closed whether the final loops back to the first
- * @returns Mesh
- */
-const loftVertexLists = (vs: Vector3[][], closed: boolean = false) => {
-  const mesh: VertexFaceListMesh = { vertices: [], faces: [] };
-
-  for (const vseries of vs) mesh.vertices.push(...vseries);
-  for (let j = 0; j < vs.length - 1; j++) {
-    const subI = j * vs[0].length;
-    const subII = (j + 1) * vs[0].length;
-    for (let i = 0; i < vs[0].length - 1; i++) {
-      mesh.faces.push([subI + i + 1, subI + i, subII + i, subII + i + 1]);
-    }
-
-    if (closed) mesh.faces.push([subII - 1, subI, subII, subII + vs[0].length - 1]);
-  }
-
-  return mesh;
-};
 
 const createArcCellSegment = (
   bB: Vector3,
@@ -114,21 +80,6 @@ const createArcCellSegment = (
   ];
 
   return loftVertexLists(vSeries);
-};
-
-/**
- * Method to join two meshes into single one
- * @param meshA
- * @param meshB
- * @returns joined mesh of both
- */
-const joinMesh = (meshA: VertexFaceListMesh, meshB: VertexFaceListMesh) => {
-  const { vertices, faces } = meshB;
-  const idx = meshA.vertices.length ?? 0;
-  meshA.vertices.push(...vertices);
-  meshA.faces.push(...(faces.map((f) => f.map((i) => i + idx)) as ([number, number, number, number] | [number, number, number])[]));
-
-  return meshA;
 };
 
 // Method to create center of arc cell
@@ -167,6 +118,7 @@ const createCenterArcCell = (
   return mesh;
   //   return cleaningMesh(mesh);
 };
+
 /**
  * Method to create end caps for standard arc cell
  * @param p [Vector3, Vector3, Vector3, Vector3] point 0 bottom, point 1 bottom, point 0 top, point 1 top
@@ -241,6 +193,13 @@ const createCellCap = (
   return mesh;
 };
 
+/**
+ * Method to create corner fill between two faces
+ * @param f0 face 0
+ * @param f1 face 1
+ * @param t0 inset distance
+ * @returns mesh
+ */
 const createCorner = (f0: Quad, f1: Quad, t0: number): VertexFaceListMesh => {
   const n0 = getNormal(f0).scale(t0);
   const n1 = getNormal(f1).scale(t0);
@@ -268,19 +227,6 @@ const pairWiseIteration = (vs: number[], closed = false): [number, number][] => 
   const ns: [number, number][] = [];
   for (let i = 0; i < vs.length - 1; i++) ns.push([vs[i], vs[i + 1]]);
   if (closed) ns.push([vs[vs.length - 1], vs[0]]);
-  return ns;
-};
-
-/**
- * Helper to create list of numbers
- * @param start first value of array
- * @param step step size
- * @param cnt amount of items
- * @returns number array
- */
-const createNumberList = (start: number, step: number, cnt: number): number[] => {
-  const ns: number[] = [];
-  for (let i = 0; i < cnt; i++) ns.push(start + i * step);
   return ns;
 };
 
@@ -318,22 +264,30 @@ export const constructVoxelVariableHeights = (
     }
   }
 
+  const cornerFaces: [Quad, Quad][] = [];
   const sideFaces: Quad[] = [];
+  for (const [z0, z1] of pairWiseIteration(zs)) {
+    const fs: Quad[] = [];
+    for (const [y1, y0] of pairWiseIteration(new Array(...ys).reverse()))
+      fs.push([new Vector3(xs[0], y1, z0), new Vector3(xs[0], y0, z0), new Vector3(xs[0], y1, z1), new Vector3(xs[0], y0, z1)]);
+    for (const [x0, x1] of pairWiseIteration(xs))
+      fs.push([new Vector3(x0, ys[0], z0), new Vector3(x1, ys[0], z0), new Vector3(x0, ys[0], z1), new Vector3(x1, ys[0], z1)]);
+    for (const [y1, y0] of pairWiseIteration(ys))
+      fs.push([new Vector3(xLast, y1, z0), new Vector3(xLast, y0, z0), new Vector3(xLast, y1, z1), new Vector3(xLast, y0, z1)]);
+    for (const [x0, x1] of pairWiseIteration(new Array(...xs).reverse()))
+      fs.push([new Vector3(x0, yLast, z0), new Vector3(x1, yLast, z0), new Vector3(x0, yLast, z1), new Vector3(x1, yLast, z1)]);
 
-  for (const [x0, x1] of pairWiseIteration(xs)) {
-    for (const [z0, z1] of pairWiseIteration(zs)) {
-      sideFaces.push([new Vector3(x0, ys[0], z0), new Vector3(x1, ys[0], z0), new Vector3(x0, ys[0], z1), new Vector3(x1, ys[0], z1)]);
-      sideFaces.push([new Vector3(x1, yLast, z0), new Vector3(x0, yLast, z0), new Vector3(x1, yLast, z1), new Vector3(x0, yLast, z1)]);
+    sideFaces.push(...fs);
+
+    for (let i = 0; i < fs.length; i++) {
+      const f0 = fs[i];
+      const f1 = fs[(i + 1) % fs.length];
+
+      if (!areColinear(polygonLazyNormal(f0), polygonLazyNormal(f1))) cornerFaces.push([f0, f1]);
     }
   }
 
-  for (const [y0, y1] of pairWiseIteration(ys)) {
-    for (const [z0, z1] of pairWiseIteration(zs)) {
-      sideFaces.push([new Vector3(xs[0], y1, z0), new Vector3(xs[0], y0, z0), new Vector3(xs[0], y1, z1), new Vector3(xs[0], y0, z1)]);
-      sideFaces.push([new Vector3(xLast, y0, z0), new Vector3(xLast, y1, z0), new Vector3(xLast, y0, z1), new Vector3(xLast, y1, z1)]);
-    }
-  }
-
+  for (const [f0, f1] of cornerFaces) mesh = joinMesh(mesh, createCorner(f0, f1, t0));
   for (const f of sideFaces) mesh = joinMesh(mesh, createCellCap(f, f[2].subtract(f[0]), t0, t1, r, uvs));
 
   // return mesh;
@@ -399,13 +353,14 @@ export const constructVoxelQuadrata = (
   t0 = 1,
   t1 = 1,
   dCnt: number = 8,
-  r?: number
+  r?: number,
+  random?: boolean
 ) => {
   r = r ?? w * 0.5 - t0;
 
-  const xs = createNumberList(-w * 0.5 * xC, w, xC);
-  const ys = createNumberList(-w * 0.5 * yC, w, yC);
-  const zs = createNumberList(-h * 0.5 * zC, h, zC);
+  const xs = createNumberList(-w * 0.5 * xC, w, xC, random);
+  const ys = createNumberList(-w * 0.5 * yC, w, yC, random);
+  const zs = createNumberList(-h * 0.5 * zC, h, zC, random);
 
   const mesh = constructVoxelVariableHeights(xs, ys, zs, t0, t1, dCnt, r);
 
@@ -414,7 +369,6 @@ export const constructVoxelQuadrata = (
 };
 
 export const quadratoAsVertexData = (): VertexFaceListMesh => {
-  // const quadMesh = constructVoxelQuadrata(5, 5, 5, 12, 10, 2, 2, 12);
   const quadMesh = constructVariableFootprint(
     [
       [0, 0],
@@ -432,7 +386,7 @@ export const quadratoAsVertexData = (): VertexFaceListMesh => {
     10 * 0.5 - 2
   );
 
-  return quadMesh;
+  return cleaningMesh(quadMesh);
 };
 
 export const addMeshToScene = (scene: Scene) => {

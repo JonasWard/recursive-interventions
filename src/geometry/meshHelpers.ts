@@ -150,6 +150,48 @@ export const vertexFaceListMeshToBaseMeshData = (mesh: VertexFaceListMesh): Base
   return { positions, indices };
 };
 
+/**
+ * Method to join two meshes into single one
+ * @param meshA
+ * @param meshB
+ * @returns joined mesh of both
+ */
+export const joinMesh = (meshA: VertexFaceListMesh, meshB: VertexFaceListMesh) => {
+  const { vertices, faces } = meshB;
+  const idx = meshA.vertices.length ?? 0;
+  meshA.vertices.push(...vertices);
+  meshA.faces.push(...(faces.map((f) => f.map((i) => i + idx)) as ([number, number, number, number] | [number, number, number])[]));
+
+  return meshA;
+};
+
+/**
+ * Method for creating a mesh from a series of polylines
+ * @param vs vertices arrays (each sub array is assumed to have the same length)
+ * @param closed whether the final loops back to the first
+ * @returns Mesh
+ */
+export const loftVertexLists = (vs: Vector3[][], closed: boolean = false) => {
+  const mesh: VertexFaceListMesh = { vertices: [], faces: [] };
+
+  for (const vseries of vs) mesh.vertices.push(...vseries);
+  for (let j = 0; j < vs.length - 1; j++) {
+    const subI = j * vs[0].length;
+    const subII = (j + 1) * vs[0].length;
+    for (let i = 0; i < vs[0].length - 1; i++) {
+      mesh.faces.push([subI + i + 1, subI + i, subII + i, subII + i + 1]);
+    }
+
+    if (closed) mesh.faces.push([subII - 1, subI, subII, subII + vs[0].length - 1]);
+  }
+
+  return mesh;
+};
+
+/**
+ * Helper method for donwloading vertex face list as stl
+ * @param mesh VertexFaceListMesh
+ */
 export const createSTL = (mesh: VertexFaceListMesh) => {
   // get an index and face list fron the object, geometry is just fine, all faces are triangles
   const { faces, vertices } = vertexFaceListMeshToTris(mesh);

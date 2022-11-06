@@ -13,3 +13,4 @@ export type BaseMeshData = {
 export type Polygon = Vector3[];
 export type Quad = [Vector3, Vector3, Vector3, Vector3];
 export type Tri = [Vector3, Vector3, Vector3];
+export type UVS = [number, number][];
