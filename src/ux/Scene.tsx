@@ -1,23 +1,23 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Engine, Scene, useBeforeRender, useClick, useHover, useScene } from "react-babylonjs";
-import { Mesh, Vector3, Color3, VertexData } from "@babylonjs/core";
+import * as BABYLON from "@babylonjs/core";
 import { constructVoxelQuadrata } from "../geometry/quadrato";
 import { createSTL, vertexFaceListMeshToBaseMeshData } from "../geometry/meshHelpers";
 import { VertexFaceListMesh } from "../enums/geometry";
 
-const DefaultScale = new Vector3(1, 1, 1);
-const BiggerScale = new Vector3(1.25, 1.25, 1.25);
+const DefaultScale = new BABYLON.Vector3(1, 1, 1);
+const BiggerScale = new BABYLON.Vector3(1.25, 1.25, 1.25);
 
 interface ISpinningBoxProps {
   name: string;
-  position: Vector3;
-  hoveredColor: Color3;
-  color: Color3;
+  position: BABYLON.Vector3;
+  hoveredColor: BABYLON.Color3;
+  color: BABYLON.Color3;
 }
 
 const SpinningBox: React.FC<ISpinningBoxProps> = (props) => {
   // access Babylon scene objects with same React hook as regular DOM elements
-  const boxRef = useRef<Mesh | null>(null);
+  const boxRef = useRef<BABYLON.Mesh | null>(null);
   // const [quadrato, setQuadrato] = useState<Mesh | null>(null);
 
   const [clicked, setClicked] = useState(false);
@@ -45,7 +45,7 @@ const SpinningBox: React.FC<ISpinningBoxProps> = (props) => {
       <standardMaterial
         name={`${props.name}-mat`}
         diffuseColor={hovered ? props.hoveredColor : props.color}
-        specularColor={Color3.Black()}
+        specularColor={BABYLON.Color3.Black()}
       />
     </mesh>
   );
@@ -54,7 +54,7 @@ const SpinningBox: React.FC<ISpinningBoxProps> = (props) => {
 interface ICustomMeshProps {
   name: string;
   useWireframe: boolean;
-  position: Vector3;
+  position: BABYLON.Vector3;
   setMesh: (mesh: VertexFaceListMesh) => void;
 }
 
@@ -62,7 +62,7 @@ const CustomMesh: React.FC<ICustomMeshProps> = (props) => {
   const scene = useScene();
   const [mesh] = useState<VertexFaceListMesh>(constructVoxelQuadrata(5, 5, 10, 20, 20, 2, 2, 8, undefined, false));
   const [customMesh] = useState(() => {
-    const meshInstance = new Mesh(props.name, scene);
+    const meshInstance = new BABYLON.Mesh(props.name, scene);
 
     //Set arrays for positions and indices
     const { positions, indices } = vertexFaceListMeshToBaseMeshData(mesh);
@@ -70,8 +70,8 @@ const CustomMesh: React.FC<ICustomMeshProps> = (props) => {
     //Empty array to contain calculated values
     const normals: number[] = [];
 
-    var vertexData = new VertexData();
-    VertexData.ComputeNormals(positions, indices, normals);
+    var vertexData = new BABYLON.VertexData();
+    BABYLON.VertexData.ComputeNormals(positions, indices, normals);
 
     //Assign positions, indices and normals to vertexData
     vertexData.positions = positions;
@@ -99,7 +99,9 @@ const CustomMesh: React.FC<ICustomMeshProps> = (props) => {
 };
 
 export const SceneWithSpinningBoxes = () => {
+  const scene = useScene();
   const [mesh, setMesh] = useState<VertexFaceListMesh>({} as VertexFaceListMesh);
+  const [dLayer, setDLayer] = useState<boolean>(false);
 
   return (
     <div>
@@ -107,10 +109,10 @@ export const SceneWithSpinningBoxes = () => {
         download stl
       </button>
       <Engine antialias adaptToDeviceRatio={true} canvasId="babylonJS" width={"100%"} height={"100%"}>
-        <Scene>
-          <arcRotateCamera name="camera1" target={Vector3.Zero()} alpha={Math.PI / 2} beta={Math.PI / 4} radius={8} />
-          <hemisphericLight name="light1" intensity={0.7} direction={Vector3.Up()} />
-          <CustomMesh name="left" position={new Vector3(-2, 0, 0)} useWireframe={false} setMesh={setMesh} />
+        <Scene >
+          <arcRotateCamera name="camera1" target={BABYLON.Vector3.Zero()} alpha={Math.PI / 2} beta={Math.PI / 4} radius={8} />
+          <hemisphericLight name="light1" intensity={0.7} direction={BABYLON.Vector3.Up()} />
+          <CustomMesh name="left" position={new BABYLON.Vector3(-2, 0, 0)} useWireframe={false} setMesh={setMesh} />
         </Scene>
       </Engine>
     </div>
