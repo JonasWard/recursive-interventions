@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Engine, Scene, useBeforeRender, useClick, useHover, useScene } from "react-babylonjs";
 import * as BABYLON from "@babylonjs/core";
-import { constructVoxelQuadrata } from "../geometry/quadrato";
+import { constructVoxelQuadrata, constructVoxelVariableHeights, quadratoAsVertexData } from "../geometry/quadrato";
 import { createSTL, vertexFaceListMeshToBaseMeshData } from "../geometry/meshHelpers";
 import { VertexFaceListMesh } from "../enums/geometry";
 
@@ -60,7 +60,15 @@ interface ICustomMeshProps {
 
 const CustomMesh: React.FC<ICustomMeshProps> = (props) => {
   const scene = useScene();
-  const [mesh] = useState<VertexFaceListMesh>(constructVoxelQuadrata(5, 5, 10, 20, 20, 2, 2, 8, undefined, false));
+
+  // const xs = [7, 10, 15, 10, 7];
+  const xs = [0, 7, 17, 32, 42, 49];
+  // const zs = [12, 15, 20, 30, 20, 15, 12];
+  const zs = [0, 12, 27, 47, 77, 97, 112, 124];
+
+  const [mesh] = useState<VertexFaceListMesh>(quadratoAsVertexData());
+  // const [mesh] = useState<VertexFaceListMesh>(constructVoxelVariableHeights(xs, xs, zs, 2, 2, 8, 7));
+  // const [mesh] = useState<VertexFaceListMesh>(constructVoxelQuadrata(5, 5, 8, 20, 10, 2, 2, 8, 10, false));
   const [customMesh] = useState(() => {
     const meshInstance = new BABYLON.Mesh(props.name, scene);
 
